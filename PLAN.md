@@ -39,10 +39,18 @@ Internet -> Cloudflare (DNS proxied, TLS) -> Cloudflare Tunnel (cloudflared på 
 
 ### Fase 1 – Cloudflare Tunnel + DNS
 
+> **Merk:** Det finnes en gammel, død tunnel kalt `robotikk` fra tidligere (tunnel-id
+> `405db25f-4fa2-4a8d-91b3-61ec78806e5c`, koblet til en server som ikke finnes lenger).
+> Cloudflare tilbyr å "migrere" denne, men det er **irreversibelt** og vi vet ikke om den
+> inneholder ingress-regler for `bambulab.robotikk.org` (som er i aktiv bruk og IKKE skal
+> røres). Beslutning: la den gamle tunnelen ligge urørt, opprett en **ny, separat** tunnel
+> for dette prosjektet i stedet. Den gamle kan evt. slettes senere når det er bekreftet at
+> ingenting bruker den.
+
 **A. I Cloudflare dashboard:**
 1. Logg inn på Cloudflare, velg robotikk.org-kontoen.
 2. Åpne "Zero Trust". Fullfør onboarding første gang (velg et team-navn) — gratisplan holder.
-3. Zero Trust → Networks → Tunnels → "Create a tunnel" → connector-type "Cloudflared" → navn: `robotikk-classroom` → Save.
+3. Zero Trust → Networks → Tunnels → "Create a tunnel" → connector-type "Cloudflared" → navn: `robotikk-classroom` → Save. (IKKE trykk "Configure"/"Start migration" på den gamle `robotikk`-tunnelen.)
 4. Noter install-kommandoen med token som vises (brukes i steg B2).
 5. Under "Public Hostnames", legg til:
    - `robotikk.org` → HTTP → `localhost:80`
