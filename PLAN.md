@@ -7,11 +7,11 @@
 - [x] Cloudflare Public Hostnames satt opp: `robotikk.org` → `localhost:8080`, `deploy.robotikk.org` → `localhost:9000`.
 - [x] Basic Auth aktivert (bruker `elev` opprettet i htpasswd) — **bekreftet fungerende fra internett** 🎉
 - [x] ufw strammet inn — kun port 22 (SSH) åpen eksternt.
-- [ ] **Gjenstår:** legg webhook-secret inn i GitHub repo → Settings → Webhooks (se pkt. 1 under)
-- [ ] **Gjenstår:** test hele deploy-kjeden (push → automatisk ombygging)
+- [x] GitHub-webhook koblet til deploy-endepunktet
+- [x] Hele deploy-kjeden testet (push → automatisk ombygging)
 - [ ] Valgfritt: opprydding/herding (se "Gjenstående steg" pkt. 2-4)
 
-## Gjenstående steg (neste økt)
+## Gjennomførte steg
 
 ### 1. Koble GitHub-webhooken til deploy-endepunktet
 ```sh
