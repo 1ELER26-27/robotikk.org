@@ -14,6 +14,7 @@ import os
 import secrets
 import sqlite3
 import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
@@ -185,8 +186,12 @@ class BrevoMailer:
             headers={"accept": "application/json", "api-key": self.settings.brevo_api_key, "content-type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=10):
-            pass
+        try:
+            with urllib.request.urlopen(request, timeout=10):
+                pass
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Brevo avviste e-posten (HTTP {error.code}): {detail}") from error
 
 
 def healthcheck(settings: Settings) -> dict[str, str]:
