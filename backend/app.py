@@ -7,6 +7,7 @@ data and will later serve authenticated student and teacher workflows.
 from __future__ import annotations
 
 import hashlib
+import html
 import hmac
 import json
 import os
@@ -176,7 +177,7 @@ class BrevoMailer:
             "htmlContent": (
                 "<p>Du er invitert til Robotikk.org.</p>"
                 "<p><a href=\"{}\">Aktiver kontoen din</a>. Lenken er tidsbegrenset.</p>"
-            ).format(link),
+            ).format(html.escape(link, quote=True)),
         }
         request = urllib.request.Request(
             "https://api.brevo.com/v3/smtp/email",

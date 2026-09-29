@@ -44,3 +44,11 @@ python3 backend/import_users.py /etc/robotikk/invited-users.csv
 ```
 
 The importer upserts the allowlist into SQLite. It does not create passwords or send email. An invitation-sending admin flow will be added separately.
+
+For a first delivery test, when exactly one active teacher is imported:
+
+```sh
+python3 backend/send_test_invitation.py
+```
+
+The command reads the Brevo secret from the environment, sends only to that teacher, and does not print the address or invitation token.
