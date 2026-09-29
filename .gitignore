@@ -10,6 +10,10 @@
 .env
 secrets/
 
+# Backend runtime-data og lokale konfigurasjoner
+backend/data/
+backend/.env
+
 # Lokale bruker- og invitasjonslister med personopplysninger
 invited-users.csv
 invited-users.local.csv
