@@ -3,85 +3,93 @@
 ## Status
 - [x] Fase 3 — webserver (192.168.30.105): pakker, `robotikk`-bruker, lokal nginx :8080, webhook :9000, ufw. Kjørt via `deploy/setup-server.sh`, verifisert OK.
 - [x] Fase 4 (delvis) — repo opprettet og pushet: https://github.com/1ELER26-27/robotikk.org
-- [ ] Fase 1 — Cloudflare Tunnel + DNS (på nginx-VM-en, ikke gjort ennå)
-- [ ] Fase 2 — edge-nginx + Basic Auth (på nginx-VM-en, ikke gjort ennå)
+- [x] Cloudflare Tunnel installert — men **på webserveren selv**, ikke på en egen nginx-VM (se "Arkitekturendring" under).
+- [ ] Basic Auth på lokal nginx (htpasswd-fil + `auth_basic` lagt til i config, må aktiveres med ekte bruker)
+- [ ] Cloudflare Public Hostnames peke til `localhost:8080` / `localhost:9000`
 - [ ] Fase 4 (resten) — legg webhook-secret inn i GitHub repo settings
 - [ ] Fase 5 — verifisering fra internett + herding
+
+## Arkitekturendring (viktig!)
+Opprinnelig plan brukte en egen nginx-VM (Nginx Proxy Manager på 192.168.30.101:81) som
+reverse-proxy + Basic Auth-lag foran webserveren. Cloudflared ble i praksis installert
+**direkte på webserveren** (192.168.30.105), og brukeren bekreftet at NPM-instansen på
+192.168.30.101 ikke skal brukes til dette prosjektet i det hele tatt (den har andre formål,
+bl.a. `bambulab.robotikk.org` som ikke skal røres).
+
+**Konsekvens:** alt kjører nå på én maskin — enklere, færre bevegelige deler:
+- `cloudflared` (her) kobler ut til Cloudflare og ruter både `robotikk.org` og
+  `deploy.robotikk.org` til `localhost`.
+- Lokal nginx på port 8080 gjør **selv** Basic Auth (ikke lenger et eget edge-lag).
+- Port 8080/9000 trenger ikke lenger åpnes for LAN i ufw — kun loopback-trafikk fra
+  cloudflared treffer dem.
 
 ## Kontekst
 - Domene robotikk.org, DNS/Cloudflare finnes allerede.
 - Denne maskinen (hostname `webserver`, 192.168.30.105/23) = Ubuntu 24.04.5 LTS LXC-container på Proxmox (192.168.30.101).
-- Egen nginx kjører på en ANNEN VM/container på samme Proxmox-vert (ikke denne maskinen).
+- Nginx Proxy Manager finnes på 192.168.30.101:81, men brukes IKKE i dette prosjektet.
 - Ingen offentlig IP / brannmur blokkerer innkommende trafikk.
 
 ## Bekreftede valg
-1. Eksponering: **Cloudflare Tunnel** (cloudflared) — ingen porter åpnes i brannmuren.
-2. Autentisering foran siden: **Nginx Basic Auth** (htpasswd, brukernavn+passord).
+1. Eksponering: **Cloudflare Tunnel** (cloudflared), kjører på webserveren selv.
+2. Autentisering foran siden: **Nginx Basic Auth** (htpasswd, brukernavn+passord), på lokal nginx.
 3. Innhold: **Statisk nettside (Hugo)**.
 4. Utrulling fra GitHub: **Webhook + pull-script** (adnanh/webhook), ikke self-hosted runner.
-5. Reverse proxy: bruk **eksisterende nginx-VM** på Proxmox-verten (ikke denne containeren).
+5. Reverse proxy: **ingen egen VM** — nginx kjører lokalt på webserveren.
 6. GitHub-repo: offentlig, i organisasjonen https://github.com/1ELER26-27/ (`robotikk.org`-repoet).
 7. Deploy-hook skilles ut på eget hostname `deploy.robotikk.org`, beskyttet med GitHub sin HMAC-signatur i stedet for basic auth.
 
 ## Arkitektur
 ```
-Internet -> Cloudflare (DNS proxied, TLS) -> Cloudflare Tunnel (cloudflared på nginx-VM)
-   -> nginx (nginx-VM)
-        - robotikk.org        : auth_basic (htpasswd) -> proxy_pass http://192.168.30.105:8080
-        - deploy.robotikk.org : (ingen basic auth)      -> proxy_pass http://192.168.30.105:9000
-   -> webserver LXC (192.168.30.105, denne maskinen) [FERDIG]
-        - lokal nginx :8080 serverer bygget Hugo-output (kun LAN, ingen auth nødvendig)
+Internet -> Cloudflare (DNS proxied, TLS) -> Cloudflare Tunnel (cloudflared, på webserveren)
+   -> webserver LXC (192.168.30.105, denne maskinen) [alt kjører her]
+        - lokal nginx :8080 : auth_basic (htpasswd) + serverer bygget Hugo-output
         - webhook :9000 (adnanh/webhook) verifiserer GitHub HMAC-secret, kjører deploy.sh
         - deploy.sh: git pull i /opt/robotikk-site -> hugo build til temp-dir -> atomisk mv -> reload nginx
 ```
 
 ## Gjenstående steg
 
-### Fase 1 – Cloudflare Tunnel + DNS
+> **Merk om gammel tunnel:** Det finnes en gammel, død tunnel kalt `robotikk` fra tidligere
+> (tunnel-id `405db25f-4fa2-4a8d-91b3-61ec78806e5c`). Den er bevisst IKKE migrert/rørt —
+> vi opprettet en ny, separat tunnel (`robotikk-classroom`) i stedet, for å unngå enhver
+> risiko for `bambulab.robotikk.org`.
 
-> **Merk:** Det finnes en gammel, død tunnel kalt `robotikk` fra tidligere (tunnel-id
-> `405db25f-4fa2-4a8d-91b3-61ec78806e5c`, koblet til en server som ikke finnes lenger).
-> Cloudflare tilbyr å "migrere" denne, men det er **irreversibelt** og vi vet ikke om den
-> inneholder ingress-regler for `bambulab.robotikk.org` (som er i aktiv bruk og IKKE skal
-> røres). Beslutning: la den gamle tunnelen ligge urørt, opprett en **ny, separat** tunnel
-> for dette prosjektet i stedet. Den gamle kan evt. slettes senere når det er bekreftet at
-> ingenting bruker den.
+### 1. Cloudflare Public Hostnames (dashboard)
+Siden cloudflared kjører lokalt, skal begge hostnames peke til `localhost`:
+- `robotikk.org` → HTTP → `localhost:8080`
+- `deploy.robotikk.org` → HTTP → `localhost:9000`
 
-**A. I Cloudflare dashboard:**
-1. Logg inn på Cloudflare, velg robotikk.org-kontoen.
-2. Åpne "Zero Trust". Fullfør onboarding første gang (velg et team-navn) — gratisplan holder.
-3. Zero Trust → Networks → Tunnels → "Create a tunnel" → connector-type "Cloudflared" → navn: `robotikk-classroom` → Save. (IKKE trykk "Configure"/"Start migration" på den gamle `robotikk`-tunnelen.)
-4. Noter install-kommandoen med token som vises (brukes i steg B2).
-5. Under "Public Hostnames", legg til:
-   - `robotikk.org` → HTTP → `localhost:80`
-   - `deploy.robotikk.org` → HTTP → `192.168.30.105:9000`
-6. Lagre. Bekreft under DNS-fanen at CNAME for begge peker til `<tunnel-id>.cfargotunnel.com` (proxied).
+### 2. Basic Auth (på webserveren)
+```sh
+sudo htpasswd -B /etc/nginx/robotikk.htpasswd <brukernavn>
+```
+(skriv passordet direkte i terminalen når det spørres om det — del det ikke med noen andre)
 
-**B. På nginx-VM-en (sudo):**
-1. Installer cloudflared fra Cloudflares apt-repo (`pkg.cloudflare.com`).
-2. Kjør install-kommandoen fra A4 (`cloudflared service install <TOKEN>`).
-3. `systemctl status cloudflared` → "active (running)".
-4. Bekreft "Healthy"/"Connected" i dashboardet.
+Config-filen (`deploy/robotikk-local-nginx.conf`) har allerede `auth_basic` lagt til og er
+installert av `setup-server.sh`. En tom htpasswd-fil betyr at ALLE avvises (fail closed)
+inntil en ekte bruker er lagt til med kommandoen over.
 
-**C. Delvis test:** `curl -I https://robotikk.org` fra utenfor LAN → forvent 502/503 (ikke DNS-feil/timeout).
+### 3. ufw — fjern nå unødvendige LAN-regler
+```sh
+sudo ufw status verbose   # sjekk om 8080/9000 fortsatt er åpnet for LAN fra tidligere forsøk
+sudo ufw delete allow from 192.168.30.0/23 to any port 8080,9000 proto tcp 2>/dev/null || true
+sudo ufw delete allow from 192.168.30.0/23 to any port 8080 proto tcp 2>/dev/null || true
+sudo ufw status verbose   # skal nå kun vise port 22 åpen
+```
 
-### Fase 2 – nginx reverse proxy + Basic Auth (på nginx-VM)
-1. `htpasswd -c -B /etc/nginx/robotikk.htpasswd <brukernavn>`.
-2. Kopiér [deploy/edge-nginx-robotikk.conf](deploy/edge-nginx-robotikk.conf) dit som utgangspunkt.
-3. `nginx -t && systemctl reload nginx`.
-
-### Fase 4 – GitHub-integrasjon (resten)
+### 4. GitHub-integrasjon (resten)
 1. Hent webhook-secret på webserveren: `sudo cat /etc/webhook/hooks.json`.
 2. Repo → Settings → Webhooks: Payload URL `https://deploy.robotikk.org/hooks/deploy`, secret = verdien over, content type `application/json`, kun `push`-event.
 3. Push til main, bekreft webhook-loggen og at siden oppdateres.
 
-### Fase 5 – Verifisering og herding
+### 5. Verifisering og herding
 1. `curl -I https://robotikk.org` uten credentials → forvent 401; med `-u bruker:passord` → 200.
 2. Test deploy-hook med feil HMAC-secret → forvent avvisning.
-3. `ufw status verbose` på 192.168.30.105 → kun port 22 + 8080/9000 (LAN) åpne. (Allerede verifisert OK.)
+3. `ufw status verbose` på 192.168.30.105 → kun port 22 åpen.
 4. Valgfritt: fail2ban, SSH kun med nøkkel, unattended-upgrades.
 
 ## Beslutninger / Scope
-- Kun robotikk.org nå; arkitekturen gjør det enkelt å legge til flere skoleprosjekter senere.
+- Kun robotikk.org nå; nye skoleprosjekter kan legges til som nye Public Hostnames i samme tunnel senere.
 - Cloudflare Access (Zero Trust identity) valgt bort til fordel for enkel nginx Basic Auth.
-- Intern trafikk (nginx-VM <-> 192.168.30.105) går ukryptert på LAN — akseptabelt for klasserom, ikke i scope å legge til intern TLS nå.
+- Nginx Proxy Manager (192.168.30.101:81) er bevisst IKKE brukt til dette prosjektet.
+

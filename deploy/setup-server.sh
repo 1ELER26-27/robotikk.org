@@ -11,12 +11,11 @@ fi
 REPO_URL="https://github.com/1ELER26-27/robotikk.org.git"
 REPO_DIR="/opt/robotikk-site"
 SERVICE_USER="robotikk"
-LAN_CIDR="192.168.30.0/23"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Installerer pakker (git, hugo, nginx, webhook, ufw)"
+echo "==> Installerer pakker (git, hugo, nginx, webhook, ufw, htpasswd)"
 apt-get update
-apt-get install -y git hugo nginx webhook ufw
+apt-get install -y git hugo nginx webhook ufw apache2-utils
 
 echo "==> Oppretter systembruker '$SERVICE_USER'"
 if ! id "$SERVICE_USER" &>/dev/null; then
@@ -54,7 +53,9 @@ cp "$REPO_DIR/deploy/webhook.service" /etc/systemd/system/webhook.service
 systemctl daemon-reload
 systemctl enable --now webhook
 
-echo "==> Konfigurerer lokal nginx (port 8080)"
+echo "==> Konfigurerer lokal nginx (port 8080, Basic Auth)"
+# Tom htpasswd-fil = alle avvises (fail closed) inntil en bruker legges til manuelt.
+[ -f /etc/nginx/robotikk.htpasswd ] || install -m 640 -o root -g www-data /dev/null /etc/nginx/robotikk.htpasswd
 cp "$REPO_DIR/deploy/robotikk-local-nginx.conf" /etc/nginx/sites-available/robotikk-local
 ln -sf /etc/nginx/sites-available/robotikk-local /etc/nginx/sites-enabled/robotikk-local
 rm -f /etc/nginx/sites-enabled/default
@@ -63,8 +64,8 @@ systemctl enable --now nginx
 systemctl reload nginx
 
 echo "==> Konfigurerer ufw (SSH må tillates FØR ufw enable for å unngå innlåsing)"
+# cloudflared kjører lokalt og når nginx/webhook via loopback, så 8080/9000 trenger ikke åpnes eksternt.
 ufw allow 22/tcp
-ufw allow from "$LAN_CIDR" to any port 8080,9000 proto tcp
 ufw default deny incoming
 ufw default allow outgoing
 ufw --force enable
@@ -76,12 +77,13 @@ sudo -u "$SERVICE_USER" "$REPO_DIR/deploy/deploy.sh"
 cat <<EOF
 
 ==============================================================
-Ferdig på denne maskinen. Gjenstår (se plan.md Fase 1, 2 og 4):
-  1. Cloudflare Tunnel + DNS på nginx-VM-en (Fase 1).
-  2. Kopiér $REPO_DIR/deploy/edge-nginx-robotikk.conf til nginx-VM-en
-     og lag htpasswd-fil der (Fase 2).
+Ferdig på denne maskinen. Gjenstår (se PLAN.md):
+  1. Lag en ekte bruker i htpasswd-filen (tom fil = alle avvises nå):
+       sudo htpasswd -B /etc/nginx/robotikk.htpasswd <brukernavn>
+  2. Cloudflare Tunnel Public Hostnames skal peke hit (samme maskin):
+       robotikk.org        -> http://localhost:8080
+       deploy.robotikk.org -> http://localhost:9000
   3. Legg webhook-secreten (over) inn i GitHub -> repo -> Settings ->
      Webhooks -> Payload URL https://deploy.robotikk.org/hooks/deploy
-     (Fase 4).
 ==============================================================
 EOF
