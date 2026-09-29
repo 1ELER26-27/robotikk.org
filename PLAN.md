@@ -1,13 +1,46 @@
 # Plan: robotikk.org via Cloudflare Tunnel
 
-## Status
-- [x] Fase 3 — webserver (192.168.30.105): pakker, `robotikk`-bruker, lokal nginx :8080, webhook :9000, ufw. Kjørt via `deploy/setup-server.sh`, verifisert OK.
-- [x] Fase 4 (delvis) — repo opprettet og pushet: https://github.com/1ELER26-27/robotikk.org
-- [x] Cloudflare Tunnel installert — men **på webserveren selv**, ikke på en egen nginx-VM (se "Arkitekturendring" under).
-- [ ] Basic Auth på lokal nginx (htpasswd-fil + `auth_basic` lagt til i config, må aktiveres med ekte bruker)
-- [ ] Cloudflare Public Hostnames peke til `localhost:8080` / `localhost:9000`
-- [ ] Fase 4 (resten) — legg webhook-secret inn i GitHub repo settings
-- [ ] Fase 5 — verifisering fra internett + herding
+## Status — rammeverket er i praksis ferdig ✅
+- [x] Webserver (192.168.30.105): pakker, `robotikk`-bruker, lokal nginx :8080, webhook :9000, ufw.
+- [x] Repo opprettet og pushet: https://github.com/1ELER26-27/robotikk.org
+- [x] Cloudflare Tunnel installert og kjører **på webserveren selv** (se "Arkitekturendring" under).
+- [x] Cloudflare Public Hostnames satt opp: `robotikk.org` → `localhost:8080`, `deploy.robotikk.org` → `localhost:9000`.
+- [x] Basic Auth aktivert (bruker `elev` opprettet i htpasswd) — **bekreftet fungerende fra internett** 🎉
+- [x] ufw strammet inn — kun port 22 (SSH) åpen eksternt.
+- [ ] **Gjenstår:** legg webhook-secret inn i GitHub repo → Settings → Webhooks (se pkt. 1 under)
+- [ ] **Gjenstår:** test hele deploy-kjeden (push → automatisk ombygging)
+- [ ] Valgfritt: opprydding/herding (se "Gjenstående steg" pkt. 2-4)
+
+## Gjenstående steg (neste økt)
+
+### 1. Koble GitHub-webhooken til deploy-endepunktet
+```sh
+sudo cat /etc/webhook/hooks.json   # finn verdien i "secret"-feltet
+```
+Gå til [github.com/1ELER26-27/robotikk.org/settings/hooks](https://github.com/1ELER26-27/robotikk.org/settings/hooks) → **Add webhook**:
+- Payload URL: `https://deploy.robotikk.org/hooks/deploy`
+- Content type: `application/json`
+- Secret: verdien fra kommandoen over
+- Events: kun **push**
+
+### 2. Test hele kjeden
+Gjør en liten endring i en fil under `content/`, commit + push til `main`. Sjekk at siden
+oppdaterer seg automatisk (kan ta noen sekunder). Feilsøk med:
+```sh
+sudo journalctl -u webhook -f
+```
+
+### 3. Valgfri opprydding
+- Vurder å slette den gamle, døde tunnelen `robotikk` (id `405db25f-4fa2-4a8d-91b3-61ec78806e5c`)
+  i Cloudflare-dashboardet — bekreft først at `bambulab.robotikk.org` ikke bruker den (den
+  dekkes av wildcard `*.robotikk.org`, så bør være trygt).
+- Legg gjerne til flere brukere i htpasswd om flere enn `elev` skal ha tilgang:
+  `sudo htpasswd -B /etc/nginx/robotikk.htpasswd <nytt-brukernavn>`.
+
+### 4. Valgfri herding (ikke kritisk, men anbefalt før produksjon i klasserommet)
+- fail2ban for gjentatte feilede Basic Auth-forsøk.
+- SSH kun med nøkkel (`PasswordAuthentication no` i `/etc/ssh/sshd_config`).
+- `unattended-upgrades` for automatiske sikkerhetsoppdateringer.
 
 ## Arkitekturendring (viktig!)
 Opprinnelig plan brukte en egen nginx-VM (Nginx Proxy Manager på 192.168.30.101:81) som
@@ -47,46 +80,11 @@ Internet -> Cloudflare (DNS proxied, TLS) -> Cloudflare Tunnel (cloudflared, på
         - deploy.sh: git pull i /opt/robotikk-site -> hugo build til temp-dir -> atomisk mv -> reload nginx
 ```
 
-## Gjenstående steg
-
-> **Merk om gammel tunnel:** Det finnes en gammel, død tunnel kalt `robotikk` fra tidligere
+## Historikk / merknader
+> **Om gammel tunnel:** Det finnes en gammel, død tunnel kalt `robotikk` fra tidligere
 > (tunnel-id `405db25f-4fa2-4a8d-91b3-61ec78806e5c`). Den er bevisst IKKE migrert/rørt —
-> vi opprettet en ny, separat tunnel (`robotikk-classroom`) i stedet, for å unngå enhver
-> risiko for `bambulab.robotikk.org`.
-
-### 1. Cloudflare Public Hostnames (dashboard)
-Siden cloudflared kjører lokalt, skal begge hostnames peke til `localhost`:
-- `robotikk.org` → HTTP → `localhost:8080`
-- `deploy.robotikk.org` → HTTP → `localhost:9000`
-
-### 2. Basic Auth (på webserveren)
-```sh
-sudo htpasswd -B /etc/nginx/robotikk.htpasswd <brukernavn>
-```
-(skriv passordet direkte i terminalen når det spørres om det — del det ikke med noen andre)
-
-Config-filen (`deploy/robotikk-local-nginx.conf`) har allerede `auth_basic` lagt til og er
-installert av `setup-server.sh`. En tom htpasswd-fil betyr at ALLE avvises (fail closed)
-inntil en ekte bruker er lagt til med kommandoen over.
-
-### 3. ufw — fjern nå unødvendige LAN-regler
-```sh
-sudo ufw status verbose   # sjekk om 8080/9000 fortsatt er åpnet for LAN fra tidligere forsøk
-sudo ufw delete allow from 192.168.30.0/23 to any port 8080,9000 proto tcp 2>/dev/null || true
-sudo ufw delete allow from 192.168.30.0/23 to any port 8080 proto tcp 2>/dev/null || true
-sudo ufw status verbose   # skal nå kun vise port 22 åpen
-```
-
-### 4. GitHub-integrasjon (resten)
-1. Hent webhook-secret på webserveren: `sudo cat /etc/webhook/hooks.json`.
-2. Repo → Settings → Webhooks: Payload URL `https://deploy.robotikk.org/hooks/deploy`, secret = verdien over, content type `application/json`, kun `push`-event.
-3. Push til main, bekreft webhook-loggen og at siden oppdateres.
-
-### 5. Verifisering og herding
-1. `curl -I https://robotikk.org` uten credentials → forvent 401; med `-u bruker:passord` → 200.
-2. Test deploy-hook med feil HMAC-secret → forvent avvisning.
-3. `ufw status verbose` på 192.168.30.105 → kun port 22 åpen.
-4. Valgfritt: fail2ban, SSH kun med nøkkel, unattended-upgrades.
+> vi opprettet en ny, separat tunnel i stedet, for å unngå enhver risiko for
+> `bambulab.robotikk.org`. Kan slettes senere, se "Gjenstående steg" pkt. 3 øverst i filen.
 
 ## Beslutninger / Scope
 - Kun robotikk.org nå; nye skoleprosjekter kan legges til som nye Public Hostnames i samme tunnel senere.
