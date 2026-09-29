@@ -1,0 +1,50 @@
+{{ define "main" }}
+  <div class="catalog-intro">
+    <h2>{{ .Title }}</h2>
+    {{ .Content }}
+  </div>
+
+  {{ $categories := slice }}
+  {{ range .Pages }}
+    {{ $categories = $categories | append .Params.kategori }}
+  {{ end }}
+  {{ $categories = $categories | uniq | sort }}
+
+  <form class="catalog-tools" data-module-tools role="search">
+    <label>
+      Søk i katalogen
+      <input type="search" data-module-search placeholder="For eksempel temperatur eller knapp" autocomplete="off">
+    </label>
+    <label>
+      Kategori
+      <select data-module-category>
+        <option value="">Alle kategorier</option>
+        {{ range $categories }}
+          <option value="{{ . }}">{{ . }}</option>
+        {{ end }}
+      </select>
+    </label>
+  </form>
+
+  <p class="catalog-count" data-module-count aria-live="polite">{{ len .Pages }} moduler funnet</p>
+  <ul class="module-grid">
+    {{ range .Pages.ByTitle }}
+      {{ $module := . }}
+      {{ $searchText := printf "%s %s %s %s %s" .Title .Params.funksjon (delimit .Params.sok " ") .Params.kategori .Params.modultype }}
+      <li class="module-card" data-module-card data-category="{{ .Params.kategori }}" data-search="{{ $searchText }}">
+        {{ with .Resources.GetMatch .Params.bilde }}
+          <img class="module-card-image" src="{{ .RelPermalink }}" alt="Illustrasjon av {{ $module.Title }}" loading="lazy">
+        {{ end }}
+        <div class="module-card-body">
+          <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+          <div class="module-meta">
+            <span class="tag">{{ .Params.modultype }}</span>
+            <span class="tag">{{ .Params.kategori }}</span>
+          </div>
+          <p>{{ .Params.funksjon }}</p>
+          <a href="{{ .RelPermalink }}">Se moduldetaljer</a>
+        </div>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}

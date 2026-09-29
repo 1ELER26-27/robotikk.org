@@ -1,0 +1,48 @@
+{{ define "main" }}
+  <a class="back-link" href="{{ "moduler/" | relURL }}">← Tilbake til utstyrskatalogen</a>
+  <article>
+    <h2>{{ .Title }}</h2>
+    <div class="module-detail">
+      <div>
+        {{ with .Resources.GetMatch .Params.bilde }}
+          <img class="module-detail-image" src="{{ .RelPermalink }}" alt="Illustrasjon av {{ $.Title }}">
+        {{ end }}
+        <div class="print-label">
+          <h1>{{ .Params.modulnummer }}</h1>
+          <p>{{ .Title }}</p>
+          <p>Hylle: {{ .Params.hylle }}</p>
+        </div>
+      </div>
+      <div>
+        <div class="module-meta">
+          <span class="tag">{{ .Params.modultype }}</span>
+          <span class="tag">{{ .Params.kategori }}</span>
+          <span class="tag">{{ .Params.modulnummer }}</span>
+        </div>
+        <p>{{ .Params.funksjon }}</p>
+        <dl class="specs">
+          <dt>Spenning</dt><dd>{{ .Params.spenning }}</dd>
+          <dt>Grensesnitt</dt><dd>{{ .Params.grensesnitt }}</dd>
+          <dt>Kompatibilitet</dt>
+          <dd><ul>{{ range .Params.kompatibilitet }}<li>{{ . }}</li>{{ end }}</ul></dd>
+          <dt>Hylle</dt><dd>{{ .Params.hylle }}</dd>
+          <dt>Antall</dt><dd>{{ .Params.antall }}</dd>
+        </dl>
+
+        <section class="qr-placeholder" aria-labelledby="qr-heading">
+          <h3 id="qr-heading">QR-kode</h3>
+          <p>QR-koden skal peke til denne stabile modulsiden:</p>
+          <code>{{ $.Site.Params.catalogBaseURL }}{{ .RelPermalink | strings.TrimPrefix "/" }}</code>
+        </section>
+
+        <h3>Eksempelkode og dokumentasjon</h3>
+        <ul class="resource-links">
+          {{ range .Params.lenker }}
+            <li><a href="{{ .url }}" rel="external">{{ .navn }}</a></li>
+          {{ end }}
+        </ul>
+      </div>
+    </div>
+    <div class="module-description">{{ .Content }}</div>
+  </article>
+{{ end }}

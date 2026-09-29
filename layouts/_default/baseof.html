@@ -21,5 +21,8 @@
   <footer>
     <p>{{ .Site.Params.description }}</p>
   </footer>
+  {{ if eq .Section "moduler" }}
+    <script src="{{ "js/moduler.js" | relURL }}" defer></script>
+  {{ end }}
 </body>
 </html>

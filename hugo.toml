@@ -4,6 +4,7 @@ title = 'Robotikk.org'
 
 [params]
   description = "Skolerelaterte prosjekter og informasjon for robotikklinja"
+  catalogBaseURL = "https://catalog.robotikk.org/"
 
 [menu]
   [[menu.main]]
@@ -18,3 +19,7 @@ title = 'Robotikk.org'
     name = "Informasjon"
     url = "/informasjon/"
     weight = 3
+  [[menu.main]]
+    name = "Utstyrskatalog"
+    url = "/moduler/"
+    weight = 4

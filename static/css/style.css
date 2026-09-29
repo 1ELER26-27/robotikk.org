@@ -1,6 +1,59 @@
-body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-header { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; border-bottom: 2px solid #222; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+:root {
+	--ink: #17324d;
+	--muted: #5d6c78;
+	--line: #d7e0e5;
+	--paper: #f7faf9;
+	--panel: #ffffff;
+	--accent: #087f8c;
+	--accent-dark: #075d67;
+	--warm: #f0b35b;
+}
+
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; max-width: 70rem; margin: 2rem auto; padding: 0 1rem; color: var(--ink); background: var(--paper); line-height: 1.55; }
+header { display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 0.75rem; margin-bottom: 2rem; }
 header h1 { font-size: 1.4rem; margin: 0; }
 header h1 a { color: inherit; text-decoration: none; }
-nav a { margin-right: 1rem; text-decoration: none; color: #0b5fa5; }
-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #ccc; color: #555; font-size: 0.9rem; }
+nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+nav a { text-decoration: none; color: var(--accent-dark); }
+nav a:hover, nav a:focus-visible { text-decoration: underline; }
+main { min-height: 20rem; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+
+.catalog-intro { max-width: 48rem; margin-bottom: 1.5rem; }
+.catalog-tools { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(10rem, 16rem); gap: 1rem; margin: 1.5rem 0; padding: 1rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--warm); }
+.catalog-tools label { display: grid; gap: 0.35rem; font-weight: 650; }
+.catalog-tools input, .catalog-tools select { width: 100%; padding: 0.65rem 0.7rem; border: 1px solid #aebdc5; border-radius: 0.25rem; background: #fff; color: var(--ink); font: inherit; }
+.catalog-tools input:focus, .catalog-tools select:focus { outline: 3px solid #9ed9dc; outline-offset: 1px; }
+.catalog-count { color: var(--muted); margin: 0 0 1rem; }
+.module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; padding: 0; list-style: none; }
+.module-card { display: grid; grid-template-rows: 9rem 1fr; background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+.module-card-image { width: 100%; height: 9rem; object-fit: contain; padding: 0.75rem; background: #e8f2f1; border-bottom: 1px solid var(--line); }
+.module-card-body { padding: 1rem; }
+.module-card h3 { margin: 0 0 0.35rem; font-size: 1.15rem; }
+.module-card h3 a, .back-link { color: var(--accent-dark); }
+.module-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0; }
+.tag { display: inline-block; padding: 0.15rem 0.45rem; background: #dcefed; color: var(--accent-dark); font-size: 0.82rem; font-weight: 650; }
+.module-detail { display: grid; grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.2fr); gap: 2rem; align-items: start; }
+.module-detail-image { width: 100%; max-height: 24rem; object-fit: contain; padding: 1rem; background: #e8f2f1; border: 1px solid var(--line); }
+.specs { display: grid; grid-template-columns: minmax(8rem, 0.5fr) 1fr; margin: 1.25rem 0; border-top: 1px solid var(--line); }
+.specs dt, .specs dd { margin: 0; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.specs dt { font-weight: 700; }
+.specs dd ul { margin: 0; padding-left: 1.2rem; }
+.resource-links { padding-left: 1.2rem; }
+.qr-placeholder { padding: 1rem; border: 1px dashed var(--accent); background: #eef8f7; }
+.print-label { display: none; }
+
+@media (max-width: 42rem) {
+	body { margin-top: 1rem; }
+	.catalog-tools, .module-detail { grid-template-columns: 1fr; }
+}
+
+@media print {
+	body { max-width: none; margin: 0; background: #fff; }
+	header, footer, .back-link, .catalog-tools, .catalog-intro, .module-detail-image { display: none; }
+	.module-detail { display: block; }
+	.print-label { display: block; border: 2px solid #111; padding: 1rem; max-width: 12rem; }
+	.print-label h1 { font-size: 1.3rem; margin: 0; }
+	.print-label p { margin: 0.25rem 0; }
+}
