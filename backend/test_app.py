@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from app import Settings, activate_invitation, connect_database, create_invitation, hash_password, healthcheck, new_invitation_token, verify_password
+from import_users import import_users
 
 
 class BackendFoundationTests(unittest.TestCase):
@@ -40,6 +41,22 @@ class BackendFoundationTests(unittest.TestCase):
             token = create_invitation(connection, cursor.lastrowid, "2999-01-01 00:00:00")
             self.assertTrue(activate_invitation(connection, token, "correct horse battery staple"))
             self.assertFalse(activate_invitation(connection, token, "another password here"))
+
+    def test_user_import_accepts_display_roles_and_blank_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            csv_path = Path(directory) / "users.csv"
+            csv_path.write_text(
+                "email,display_name,role,active,github_username\n"
+                "student@example.invalid,Elev,Elev,true,\n"
+                "teacher@example.invalid,Lærer,Lærer,true,\n\n",
+                encoding="utf-8",
+            )
+            database_path = Path(directory) / "robotikk.sqlite3"
+            settings = Settings(database_path, None, "noreply@example.invalid", "Example", "test-secret")
+            self.assertEqual(import_users(csv_path, settings), 2)
+            with connect_database(database_path) as connection:
+                roles = {row["role"] for row in connection.execute("SELECT role FROM users")}
+            self.assertEqual(roles, {"elev", "laerer"})
 
 
 if __name__ == "__main__":

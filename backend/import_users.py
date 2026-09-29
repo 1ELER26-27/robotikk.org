@@ -21,11 +21,18 @@ def import_users(csv_path: Path, settings: Settings) -> int:
         imported = 0
         with connect_database(settings.database_path) as connection:
             for row in reader:
-                email = row["email"].strip().lower()
-                display_name = row["display_name"].strip()
-                role = row["role"].strip()
-                active = row["active"].strip().lower() == "true"
-                github_username = row["github_username"].strip() or None
+                raw_email = (row.get("email") or "").strip()
+                raw_display_name = (row.get("display_name") or "").strip()
+                raw_role = (row.get("role") or "").strip()
+                raw_active = (row.get("active") or "").strip()
+                raw_github_username = (row.get("github_username") or "").strip()
+                if not any((raw_email, raw_display_name, raw_role, raw_active, raw_github_username)):
+                    continue
+                email = raw_email.lower()
+                display_name = raw_display_name
+                role = raw_role.lower().replace("æ", "ae")
+                active = raw_active.lower() == "true"
+                github_username = raw_github_username or None
                 if not email or not display_name or role not in {"elev", "laerer"}:
                     raise ValueError("Hver rad må ha e-post, navn og rolle elev/laerer")
                 connection.execute(
