@@ -42,6 +42,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
 .specs dd ul { margin: 0; padding-left: 1.2rem; }
 .resource-links { padding-left: 1.2rem; }
 .qr-placeholder { padding: 1rem; border: 1px dashed var(--accent); background: #eef8f7; }
+.qr-image { display: block; width: 10rem; height: 10rem; margin: 0.75rem 0; background: #fff; }
 .print-label { display: none; }
 
 @media (max-width: 42rem) {

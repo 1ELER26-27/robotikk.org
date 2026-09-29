@@ -13,9 +13,9 @@ REPO_DIR="/opt/robotikk-site"
 SERVICE_USER="robotikk"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Installerer pakker (git, hugo, nginx, webhook, ufw, htpasswd)"
+echo "==> Installerer pakker (git, hugo, nginx, webhook, ufw, htpasswd, qrencode)"
 apt-get update
-apt-get install -y git hugo nginx webhook ufw apache2-utils
+apt-get install -y git hugo nginx webhook ufw apache2-utils qrencode
 
 echo "==> Oppretter systembruker '$SERVICE_USER'"
 if ! id "$SERVICE_USER" &>/dev/null; then
