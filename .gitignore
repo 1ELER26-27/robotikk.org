@@ -9,3 +9,7 @@
 /data/
 .env
 secrets/
+
+# Lokale bruker- og invitasjonslister med personopplysninger
+invited-users.csv
+invited-users.local.csv
