@@ -2,8 +2,15 @@
 title: "KY-004 trykknapp"
 type: "moduler"
 bilde: "module.svg"
-modulnummer: "KY-004"
+identifikatorer:
+  - "KY-004"
+  - "HW-483"
+  - "Keyes button module"
+aliaser:
+  - "trykknapp"
+  - "push button"
 kategori: "Input"
+underkategori: "Knapper og brytere"
 modultype: "Sensor"
 funksjon: "Registrerer et trykk som digital input."
 spenning: "3,3–5 V"

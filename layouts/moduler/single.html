@@ -9,7 +9,7 @@
           <img class="module-detail-image" src="{{ .RelPermalink }}" alt="Illustrasjon av {{ $.Title }}">
         {{ end }}
         <div class="print-label">
-          <h1>{{ .Params.modulnummer }}</h1>
+          <h1>{{ index .Params.identifikatorer 0 }}</h1>
           <p>{{ .Title }}</p>
           <p>Hylle: {{ .Params.hylle }}</p>
         </div>
@@ -18,8 +18,10 @@
         <div class="module-meta">
           <span class="tag">{{ .Params.modultype }}</span>
           <span class="tag">{{ .Params.kategori }}</span>
-          <span class="tag">{{ .Params.modulnummer }}</span>
+          {{ with .Params.underkategori }}<span class="tag">{{ . }}</span>{{ end }}
         </div>
+        <p class="module-identifiers"><strong>Identifikatorer:</strong> {{ delimit .Params.identifikatorer " · " }}</p>
+        {{ with .Params.aliaser }}<p><strong>Også kjent som:</strong> {{ delimit . " · " }}</p>{{ end }}
         <p>{{ .Params.funksjon }}</p>
         <dl class="specs">
           <dt>Spenning</dt><dd>{{ .Params.spenning }}</dd>

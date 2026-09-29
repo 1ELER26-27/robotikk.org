@@ -21,7 +21,7 @@ main { min-height: 20rem; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
 
 .catalog-intro { max-width: 48rem; margin-bottom: 1.5rem; }
-.catalog-tools { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(10rem, 16rem); gap: 1rem; margin: 1.5rem 0; padding: 1rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--warm); }
+.catalog-tools { display: grid; grid-template-columns: minmax(12rem, 1fr) repeat(2, minmax(10rem, 16rem)); gap: 1rem; margin: 1.5rem 0; padding: 1rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--warm); }
 .catalog-tools label { display: grid; gap: 0.35rem; font-weight: 650; }
 .catalog-tools input, .catalog-tools select { width: 100%; padding: 0.65rem 0.7rem; border: 1px solid #aebdc5; border-radius: 0.25rem; background: #fff; color: var(--ink); font: inherit; }
 .catalog-tools input:focus, .catalog-tools select:focus { outline: 3px solid #9ed9dc; outline-offset: 1px; }
@@ -33,6 +33,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
 .module-card h3 { margin: 0 0 0.35rem; font-size: 1.15rem; }
 .module-card h3 a, .back-link { color: var(--accent-dark); }
 .module-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0; }
+.module-identifiers { margin: 0.35rem 0; color: var(--muted); font-size: 0.88rem; }
 .tag { display: inline-block; padding: 0.15rem 0.45rem; background: #dcefed; color: var(--accent-dark); font-size: 0.82rem; font-weight: 650; }
 .module-detail { display: grid; grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.2fr); gap: 2rem; align-items: start; }
 .module-detail-image { width: 100%; max-height: 24rem; object-fit: contain; padding: 1rem; background: #e8f2f1; border: 1px solid var(--line); }

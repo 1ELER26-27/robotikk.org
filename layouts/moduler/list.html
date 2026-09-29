@@ -9,6 +9,11 @@
     {{ $categories = $categories | append .Params.kategori }}
   {{ end }}
   {{ $categories = $categories | uniq | sort }}
+  {{ $subcategories := slice }}
+  {{ range .Pages }}
+    {{ $subcategories = $subcategories | append .Params.underkategori }}
+  {{ end }}
+  {{ $subcategories = $subcategories | uniq | sort }}
 
   <form class="catalog-tools" data-module-tools role="search">
     <label>
@@ -24,14 +29,23 @@
         {{ end }}
       </select>
     </label>
+    <label>
+      Underkategori
+      <select data-module-subcategory>
+        <option value="">Alle underkategorier</option>
+        {{ range $subcategories }}
+          {{ if . }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        {{ end }}
+      </select>
+    </label>
   </form>
 
   <p class="catalog-count" data-module-count aria-live="polite">{{ len .Pages }} moduler funnet</p>
   <ul class="module-grid">
     {{ range .Pages.ByTitle }}
       {{ $module := . }}
-      {{ $searchText := printf "%s %s %s %s %s" .Title .Params.funksjon (delimit .Params.sok " ") .Params.kategori .Params.modultype }}
-      <li class="module-card" data-module-card data-category="{{ .Params.kategori }}" data-search="{{ $searchText }}">
+      {{ $searchText := printf "%s %s %s %s %s %s %s" .Title .Params.funksjon (delimit .Params.sok " ") (delimit .Params.aliaser " ") (delimit .Params.identifikatorer " ") .Params.kategori .Params.underkategori }}
+      <li class="module-card" data-module-card data-category="{{ .Params.kategori }}" data-subcategory="{{ .Params.underkategori }}" data-search="{{ $searchText }}">
         {{ with .Resources.GetMatch .Params.bilde }}
           <img class="module-card-image" src="{{ .RelPermalink }}" alt="Illustrasjon av {{ $module.Title }}" loading="lazy">
         {{ end }}
@@ -40,7 +54,9 @@
           <div class="module-meta">
             <span class="tag">{{ .Params.modultype }}</span>
             <span class="tag">{{ .Params.kategori }}</span>
+            {{ with .Params.underkategori }}<span class="tag">{{ . }}</span>{{ end }}
           </div>
+          <p class="module-identifiers">{{ delimit .Params.identifikatorer " · " }}</p>
           <p>{{ .Params.funksjon }}</p>
           <a href="{{ .RelPermalink }}">Se moduldetaljer</a>
         </div>

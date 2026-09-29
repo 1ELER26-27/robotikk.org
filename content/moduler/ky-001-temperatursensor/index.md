@@ -2,8 +2,14 @@
 title: "KY-001 temperatursensor"
 type: "moduler"
 bilde: "module.svg"
-modulnummer: "KY-001"
+identifikatorer:
+  - "KY-001"
+  - "HW-001"
+  - "DS18B20-modul"
+aliaser:
+  - "digital temperatursensor"
 kategori: "Temperatur"
+underkategori: "Digital 1-Wire"
 modultype: "Sensor"
 funksjon: "Måler temperatur med en digital termostatbryter."
 spenning: "3,3–5 V"
