@@ -31,3 +31,16 @@ BREVO_SENDER_NAME=Robotikk.org
 The API key must be installed as a server secret, not committed or passed to frontend code.
 
 The production service listens only on `127.0.0.1:9100`; nginx proxies the public login and activation paths to it. The service configuration belongs in `/etc/robotikk/backend.env`, which is outside the repository.
+
+## Import of approved users
+
+Keep the completed CSV outside Git, for example `/etc/robotikk/invited-users.csv`. Import it on the server with the service configuration loaded:
+
+```sh
+set -a
+. /etc/robotikk/backend.env
+set +a
+python3 backend/import_users.py /etc/robotikk/invited-users.csv
+```
+
+The importer upserts the allowlist into SQLite. It does not create passwords or send email. An invitation-sending admin flow will be added separately.
