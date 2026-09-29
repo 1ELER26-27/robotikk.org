@@ -1,0 +1,22 @@
+[Unit]
+Description=Robotikk.org authenticated features backend
+After=network.target
+
+[Service]
+Type=simple
+User=robotikk
+Group=robotikk
+WorkingDirectory=/opt/robotikk-site
+EnvironmentFile=-/etc/robotikk/backend.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/robotikk-site/backend/server.py
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/robotikk-site/backend/data
+
+[Install]
+WantedBy=multi-user.target

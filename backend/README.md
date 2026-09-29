@@ -29,3 +29,5 @@ BREVO_SENDER_NAME=Robotikk.org
 ```
 
 The API key must be installed as a server secret, not committed or passed to frontend code.
+
+The production service listens only on `127.0.0.1:9100`; nginx proxies the public login and activation paths to it. The service configuration belongs in `/etc/robotikk/backend.env`, which is outside the repository.
