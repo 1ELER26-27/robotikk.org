@@ -1,0 +1,11 @@
+# Hugo build-output (genereres av deploy.sh, skal ikke i git)
+/public/
+/resources/
+.hugo_build.lock
+
+# Lokale databaser / hemmeligheter for evt. fremtidige skoleprosjekter — aldri i et offentlig repo
+*.sqlite3
+*.db
+/data/
+.env
+secrets/

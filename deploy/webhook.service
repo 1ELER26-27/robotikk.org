@@ -1,0 +1,17 @@
+[Unit]
+Description=GitHub webhook listener for robotikk.org deploy
+After=network.target
+
+[Service]
+Type=simple
+User=robotikk
+Group=robotikk
+WorkingDirectory=/opt/robotikk-site
+ExecStart=/usr/bin/webhook -hooks /etc/webhook/hooks.json -port 9000 -verbose
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/robotikk-site
+
+[Install]
+WantedBy=multi-user.target

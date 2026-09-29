@@ -1,0 +1,20 @@
+baseURL = 'https://robotikk.org/'
+languageCode = 'nb-NO'
+title = 'Robotikk.org'
+
+[params]
+  description = "Skolerelaterte prosjekter og informasjon for robotikklinja"
+
+[menu]
+  [[menu.main]]
+    name = "Hjem"
+    url = "/"
+    weight = 1
+  [[menu.main]]
+    name = "Prosjekter"
+    url = "/prosjekter/"
+    weight = 2
+  [[menu.main]]
+    name = "Informasjon"
+    url = "/informasjon/"
+    weight = 3
