@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import Settings, connect_database, hash_password, healthcheck, new_invitation_token, verify_password
+from app import Settings, activate_invitation, connect_database, create_invitation, hash_password, healthcheck, new_invitation_token, verify_password
 
 
 class BackendFoundationTests(unittest.TestCase):
@@ -31,6 +31,15 @@ class BackendFoundationTests(unittest.TestCase):
             with connect_database(path) as connection:
                 tables = {row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
             self.assertTrue({"users", "invitation_tokens", "audit_events"}.issubset(tables))
+
+    def test_invitation_can_activate_user_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "robotikk.sqlite3"
+            connection = connect_database(path)
+            cursor = connection.execute("INSERT INTO users (email, display_name, role) VALUES (?, ?, ?)", ("student@example.invalid", "Example", "elev"))
+            token = create_invitation(connection, cursor.lastrowid, "2999-01-01 00:00:00")
+            self.assertTrue(activate_invitation(connection, token, "correct horse battery staple"))
+            self.assertFalse(activate_invitation(connection, token, "another password here"))
 
 
 if __name__ == "__main__":
