@@ -15,6 +15,8 @@ from urllib.parse import parse_qs, urlparse
 
 from app import Settings, activate_invitation, authenticate_user, connect_database, find_user_by_id, list_users, record_event
 
+SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30  # husk innlogget enhet i 30 dager
+
 
 def page(title: str, body: str) -> bytes:
     return f"""<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{html.escape(title)} · Robotikk.org</title><link rel="stylesheet" href="/css/style.css"></head><body><main><h1>{html.escape(title)}</h1>{body}</main></body></html>""".encode("utf-8")
@@ -37,7 +39,7 @@ class Handler(BaseHTTPRequestHandler):
         return {key: value[0].strip() for key, value in values.items() if value}
 
     def session_cookie(self, user_id: int) -> str:
-        expires = int(time.time()) + 28800
+        expires = int(time.time()) + SESSION_LIFETIME_SECONDS
         payload = f"{user_id}.{expires}"
         signature = hmac.new(self.settings.session_secret.encode(), payload.encode(), "sha256").hexdigest()
         return f"{payload}.{signature}"
@@ -73,6 +75,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/internal/auth-check":
+            user_id = self.valid_session()
+            with connect_database(self.settings.database_path) as connection:
+                user = find_user_by_id(connection, user_id) if user_id is not None else None
+            self.send_response(HTTPStatus.OK if (user is not None and user["active"]) else HTTPStatus.UNAUTHORIZED)
+            self.end_headers()
+            return
         if parsed.path == "/health":
             self.send_page(HTTPStatus.OK, "OK", "<p>Backend kjører.</p>")
             return
@@ -140,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
                     record_event(connection, user["id"], "login")
                     self.send_response(HTTPStatus.SEE_OTHER)
                     self.send_header("Location", "/min-side/")
-                    self.send_header("Set-Cookie", f"robotikk_session={self.session_cookie(user['id'])}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800")
+                    self.send_header("Set-Cookie", f"robotikk_session={self.session_cookie(user['id'])}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={SESSION_LIFETIME_SECONDS}")
                     self.end_headers()
                     return
             self.send_page(HTTPStatus.UNAUTHORIZED, "Kunne ikke logge inn", "<p>E-post eller passord er feil.</p>")

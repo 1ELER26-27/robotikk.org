@@ -4,6 +4,7 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -61,6 +62,17 @@ class AdminRouteTests(unittest.TestCase):
         with urllib.request.urlopen(request) as response:
             return response.geturl(), response.read().decode("utf-8")
 
+    def _status(self, path: str, user_id: int | None = None) -> int:
+        headers = {}
+        if user_id is not None:
+            headers["Cookie"] = f"robotikk_session={self._session_cookie(user_id)}"
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", headers=headers)
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+
     def test_admin_route_redirects_anonymous_visitors_to_login(self):
         final_url, _ = self._get("/admin/")
         self.assertTrue(final_url.endswith("/logg-inn/"))
@@ -91,6 +103,13 @@ class AdminRouteTests(unittest.TestCase):
         self.assertTrue(final_url.endswith("/min-side/"))
         self.assertIn("Elev Eksempel", body)
         self.assertNotIn("/admin/", body)
+
+    def test_internal_auth_check_rejects_anonymous_visitors(self):
+        self.assertEqual(self._status("/internal/auth-check"), 401)
+
+    def test_internal_auth_check_accepts_any_active_user(self):
+        self.assertEqual(self._status("/internal/auth-check", user_id=self.student_id), 200)
+        self.assertEqual(self._status("/internal/auth-check", user_id=self.admin_id), 200)
 
 
 if __name__ == "__main__":

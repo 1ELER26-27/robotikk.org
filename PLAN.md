@@ -1,6 +1,43 @@
 # Plan: robotikk.org via Cloudflare Tunnel
 
-## Ny fase: Adminpanel for lærere 🚧
+## Ny fase: Ett samlet, individuelt påloggingssystem 🚧
+Frem til nå har `robotikk.org` hatt **to separate** auth-lag: nginx Basic Auth (delt
+klassepassord i `/etc/nginx/robotikk.htpasswd`) foran hele katalogen, og backendens egen
+individuelle e-post/passord-innlogging kun for `/logg-inn/`, `/min-side/` og `/admin/`.
+Dette slås nå sammen til ett system.
+
+**Avgjort (2026-09-30):**
+- Basic Auth fjernes helt fra `robotikk.org`. Individuell backend-pålogging blir eneste
+  adgangskontroll for hele nettstedet.
+- `catalog.robotikk.org` forblir et eget, fullt offentlig `server{}`-block uten noen form
+  for pålogging — upåvirket av denne endringen.
+- Løsning: nginx `auth_request` mot et internt endepunkt i backend
+  (`GET /internal/auth-check`, merket `internal;` i nginx — aldri nåbart utenfra). Svarer
+  200 ved gyldig sesjonscookie, 401 ellers. `location /` i `robotikk.org` bruker dette og
+  sender til `/logg-inn/` ved 401 (se [deploy/robotikk-local-nginx.conf](deploy/robotikk-local-nginx.conf)).
+  `/logg-inn/`, `/aktiver/`, `/glemt-passord/`, `/css/`, `/js/`, `/health` er unntatt (må
+  være nåbare før innlogging).
+- **Ingen risiko ved rullout:** siden er ikke tatt i bruk av klassen ennå, og
+  passord-reset/e-post er ikke ferdig satt opp — ingen grunn til gradvis migrering eller
+  fallback til Basic Auth.
+- Sesjonscookien er forlenget fra 8 timer til **30 dager** (`SESSION_LIFETIME_SECONDS` i
+  [backend/server.py](backend/server.py)) — brukeren ba om at innlogget enhet huskes over
+  flere dager.
+- Ingen `?next=`-redirect etter innlogging (holdt enkelt): brukeren havner på `/min-side/`
+  og klikker seg videre selv. Dette skjer sjelden nok til at det ikke er verdt kompleksiteten.
+- **Kjent avveining:** hele `robotikk.org` er nå avhengig av at backend-tjenesten
+  (`robotikk-backend.service`) kjører — går den ned, stopper `auth_request` alt innhold på
+  robotikk.org (men ikke `catalog.robotikk.org`, som er upåvirket).
+
+## Rollemodell (styrende prinsipp for videre arbeid)
+- **Elev**: kan kun endre sine egne data/ting.
+- **Lærer med `is_admin`**: kan overstyre og administrere det elevene kan gjøre (se
+  adminpanel under). Dette er et generelt prinsipp for all fremtidig funksjonalitet som
+  lar brukere redigere noe — ikke bare adminpanelet.
+- Foreløpig finnes ingen elev-redigerbare ressurser i appen; prinsippet gjelder når slike
+  funksjoner bygges senere.
+
+## Adminpanel for lærere ✅ (grunnvisning ferdig)
 Infrastrukturen (Cloudflare Tunnel, nginx, webhook-deploy) og den grunnleggende
 autentiserings-backenden (invitasjon, aktivering, innlogging) er ferdige. Neste fase er å
 gi lærere et adminpanel i den private backenden (`backend/`).
@@ -31,11 +68,10 @@ liste, invitere, deaktivere, evt. endre rolle) uten å gå via CSV-import/SSH.
    `valid_session()` + admin-flagg, med redirect til `/logg-inn/` ellers.
 
 **Neste steg:**
-- [ ] Gi `ingve` admintilgang i databasen — kjør på serveren (verktøyet er klart, men ikke kjørt mot produksjonsdatabasen ennå):
-      `python3 backend/set_admin.py ingve.bjorna@skole.rogfk.no true`
+- [x] Gi `ingve` admintilgang i databasen — gjort mot produksjonsdatabasen 2026-09-30.
 - [x] Legg til en beskyttet `/admin/`-rute i `server.py` som lister brukere fra `users`-tabellen (krever innlogget økt + `is_admin`, redirect til `/logg-inn/` ellers).
 - [ ] Utvid med handlinger (deaktiver bruker, ny invitasjon) etter at grunnvisningen virker.
-- [x] Skriv tester i `backend/test_app.py` / `backend/test_server.py` for ny logikk (12 tester, alle grønne).
+- [x] Skriv tester i `backend/test_app.py` / `backend/test_server.py` for ny logikk (17 tester, alle grønne).
 - [x] Følg `DESIGN-SPEC.md` for skjema/tabell-utforming i panelet — tabellen har `.admin-table`-stil med stabile kolonner på desktop og stablet visning under 42rem.
 
 ## Status — rammeverket er i praksis ferdig ✅
