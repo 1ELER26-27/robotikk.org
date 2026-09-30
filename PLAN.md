@@ -1,6 +1,31 @@
 # Plan: robotikk.org via Cloudflare Tunnel
 
-## Ny fase: Ett samlet, individuelt påloggingssystem 🚧
+## Ny fase: Utstyrsinventar skal ikke ligge i det offentlige repoet 🚧
+`data/` (git-ignorert, se `.gitignore`) inneholder nå `arduino_modules_data/` — 34
+KY-moduler skrapet fra arduinomodules.info (JSON, markdown, bilder). Målet var å gjøre
+det enkelt å lage modulprofiler for utstyr klassen ikke eier ennå (`antall: 0`, skjult fra
+liste/søk men nåbar direkte).
+
+**Avgjort (2026-09-30):**
+- Opphavsrett til de skrapte bildene er usikker → de skal **kun** brukes som privat
+  plassholder-referanse, aldri committes til GitHub.
+- Generator-scriptet [scripts/generate_arduino_modules.py](scripts/generate_arduino_modules.py)
+  skriver derfor til `data/arduino_modules_data/genererte-profiler/` (gitignorert), **ikke**
+  til `content/moduler/` (offentlig, git-sporet). 32 utkastprofiler ligger der nå.
+- Generelt prinsipp fremover: GitHub-repoet skal være **skallet** (kode/maler/design), ikke
+  "databasen av ting" (det faktiske utstyrsinventaret). Alle kan klone koden, men må bygge
+  opp sitt eget inventar lokalt.
+- **Unntak:** `content/moduler/ky-001-temperatursensor/` og `ky-004-knapp/` blir stående i
+  git som eksempel på strukturen/formatet en modulside skal ha.
+- ✅ Ny funksjon uavhengig av dette: `layouts/moduler/list.html` filtrerer nå bort moduler
+  med `antall: 0` fra liste/søk/kategorityper (`where .Pages "Params.antall" "!=" 0`), og
+  `single.html` viser en "Ikke på lager"-tagg. Siden er fortsatt nåbar direkte via URL.
+- ❓ **Uavklart:** hvordan det faktiske (fremtidige, ekte) utstyrsinventaret skal komme seg
+  fra en privat kilde og over på webserveren, siden det ikke lenger skal gå via git push +
+  webhook slik resten av siden gjør. Bruker vet ikke ennå — avklares senere før dette tas i
+  bruk for ekte inventar.
+
+## Tidligere fase: Ett samlet, individuelt påloggingssystem ✅
 Frem til nå har `robotikk.org` hatt **to separate** auth-lag: nginx Basic Auth (delt
 klassepassord i `/etc/nginx/robotikk.htpasswd`) foran hele katalogen, og backendens egen
 individuelle e-post/passord-innlogging kun for `/logg-inn/`, `/min-side/` og `/admin/`.

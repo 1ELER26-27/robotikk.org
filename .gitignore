@@ -3,7 +3,7 @@
 /resources/
 .hugo_build.lock
 
-# Lokale databaser / hemmeligheter for evt. fremtidige skoleprosjekter — aldri i et offentlig repo
+# Lokale databaser / hemmeligheter / private bilder og notater — aldri i et offentlig repo
 *.sqlite3
 *.db
 /data/

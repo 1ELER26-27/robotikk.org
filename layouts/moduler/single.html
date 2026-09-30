@@ -19,6 +19,7 @@
           <span class="tag">{{ .Params.modultype }}</span>
           <span class="tag">{{ .Params.kategori }}</span>
           {{ with .Params.underkategori }}<span class="tag">{{ . }}</span>{{ end }}
+          {{ if eq .Params.antall 0 }}<span class="tag">Ikke på lager</span>{{ end }}
         </div>
         <p class="module-identifiers"><strong>Identifikatorer:</strong> {{ delimit .Params.identifikatorer " · " }}</p>
         {{ with .Params.aliaser }}<p><strong>Også kjent som:</strong> {{ delimit . " · " }}</p>{{ end }}

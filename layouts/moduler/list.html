@@ -4,13 +4,16 @@
     {{ .Content }}
   </div>
 
+  {{/* Moduler med antall 0 (ikke anskaffet ennå) skjules fra liste/søk, men siden finnes fortsatt direkte. */}}
+  {{ $inStock := where .Pages "Params.antall" "!=" 0 }}
+
   {{ $categories := slice }}
-  {{ range .Pages }}
+  {{ range $inStock }}
     {{ $categories = $categories | append .Params.kategori }}
   {{ end }}
   {{ $categories = $categories | uniq | sort }}
   {{ $subcategories := slice }}
-  {{ range .Pages }}
+  {{ range $inStock }}
     {{ $subcategories = $subcategories | append .Params.underkategori }}
   {{ end }}
   {{ $subcategories = $subcategories | uniq | sort }}
@@ -40,9 +43,9 @@
     </label>
   </form>
 
-  <p class="catalog-count" data-module-count aria-live="polite">{{ len .Pages }} moduler funnet</p>
+  <p class="catalog-count" data-module-count aria-live="polite">{{ len $inStock }} moduler funnet</p>
   <ul class="module-grid">
-    {{ range .Pages.ByTitle }}
+    {{ range $inStock.ByTitle }}
       {{ $module := . }}
       {{ $searchText := printf "%s %s %s %s %s %s %s" .Title .Params.funksjon (delimit .Params.sok " ") (delimit .Params.aliaser " ") (delimit .Params.identifikatorer " ") .Params.kategori .Params.underkategori }}
       <li class="module-card" data-module-card data-category="{{ .Params.kategori }}" data-subcategory="{{ .Params.underkategori }}" data-search="{{ $searchText }}">
