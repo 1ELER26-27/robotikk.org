@@ -57,9 +57,19 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
 .qr-image { display: block; width: 10rem; height: 10rem; margin: 0.75rem 0; background: #fff; }
 .print-label { display: none; }
 
+.admin-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+.admin-table caption { text-align: left; font-weight: 700; padding: 0.5rem 0.1rem; }
+.admin-table th, .admin-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); }
+.admin-table th { background: var(--paper); font-weight: 700; }
+
 @media (max-width: 42rem) {
 	body { margin-top: 1rem; }
 	.catalog-tools, .module-detail { grid-template-columns: 1fr; }
+	.admin-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+	.admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; width: 100%; }
+	.admin-table tr { border: 1px solid var(--line); margin-bottom: 0.75rem; }
+	.admin-table td { border-bottom: none; padding: 0.4rem 0.75rem; }
+	.admin-table td::before { content: attr(data-label) ": "; font-weight: 700; }
 }
 
 @media print {

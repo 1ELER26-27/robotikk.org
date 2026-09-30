@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     github_username TEXT,
     password_hash TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -81,7 +82,16 @@ def connect_database(path: Path) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.executescript(SCHEMA)
+    _migrate_schema(connection)
     return connection
+
+
+def _migrate_schema(connection: sqlite3.Connection) -> None:
+    """Add columns to tables created before they existed in SCHEMA."""
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+    if "is_admin" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+        connection.commit()
 
 
 def hash_password(password: str) -> str:
@@ -130,6 +140,26 @@ def create_invitation(connection: sqlite3.Connection, user_id: int, expires_at: 
 
 def find_user_by_email(connection: sqlite3.Connection, email: str) -> sqlite3.Row | None:
     return connection.execute("SELECT * FROM users WHERE lower(email) = lower(?)", (email.strip(),)).fetchone()
+
+
+def find_user_by_id(connection: sqlite3.Connection, user_id: int) -> sqlite3.Row | None:
+    return connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+
+def list_users(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return connection.execute(
+        "SELECT id, email, display_name, role, active, is_admin FROM users ORDER BY role, display_name"
+    ).fetchall()
+
+
+def set_user_admin(connection: sqlite3.Connection, email: str, is_admin: bool) -> bool:
+    """Grant or revoke admin rights. Only teachers ('laerer') may be admins."""
+    row = find_user_by_email(connection, email)
+    if row is None or (is_admin and row["role"] != "laerer"):
+        return False
+    connection.execute("UPDATE users SET is_admin = ? WHERE id = ?", (int(is_admin), row["id"]))
+    connection.commit()
+    return True
 
 
 def set_user_password(connection: sqlite3.Connection, user_id: int, password: str) -> None:

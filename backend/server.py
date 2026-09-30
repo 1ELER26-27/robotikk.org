@@ -13,7 +13,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from app import Settings, activate_invitation, authenticate_user, connect_database, record_event
+from app import Settings, activate_invitation, authenticate_user, connect_database, find_user_by_id, list_users, record_event
 
 
 def page(title: str, body: str) -> bytes:
@@ -57,6 +57,20 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             return None
 
+    def current_admin(self, connection) -> object | None:
+        user_id = self.valid_session()
+        if user_id is None:
+            return None
+        user = find_user_by_id(connection, user_id)
+        if user is None or not user["active"] or not user["is_admin"]:
+            return None
+        return user
+
+    def redirect(self, location: str) -> None:
+        self.send_response(HTTPStatus.SEE_OTHER)
+        self.send_header("Location", location)
+        self.end_headers()
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/health":
@@ -71,6 +85,33 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_page(HTTPStatus.BAD_REQUEST, "Ugyldig lenke", "<p>Invitasjonslenken er ugyldig eller utløpt.</p>")
                 return
             self.send_page(HTTPStatus.OK, "Aktiver konto", f'<form method="post"><input type="hidden" name="token" value="{html.escape(token)}"><label>Nytt passord<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button type="submit">Lagre passord</button></form>')
+            return
+        if parsed.path == "/admin/":
+            with connect_database(self.settings.database_path) as connection:
+                admin = self.current_admin(connection)
+                if admin is None:
+                    self.redirect("/logg-inn/")
+                    return
+                users = list_users(connection)
+            rows = "".join(
+                "<tr><td data-label=\"Navn\">{}</td><td data-label=\"E-post\">{}</td>"
+                "<td data-label=\"Rolle\">{}</td><td data-label=\"Admin\">{}</td>"
+                "<td data-label=\"Status\">{}</td></tr>".format(
+                    html.escape(row["display_name"]),
+                    html.escape(row["email"]),
+                    "Lærer" if row["role"] == "laerer" else "Elev",
+                    "Ja" if row["is_admin"] else "Nei",
+                    "Aktiv" if row["active"] else "Deaktivert",
+                )
+                for row in users
+            )
+            body = (
+                '<table class="admin-table"><caption>Brukere</caption>'
+                "<thead><tr><th scope=\"col\">Navn</th><th scope=\"col\">E-post</th>"
+                "<th scope=\"col\">Rolle</th><th scope=\"col\">Admin</th><th scope=\"col\">Status</th></tr></thead>"
+                f"<tbody>{rows}</tbody></table>"
+            )
+            self.send_page(HTTPStatus.OK, "Adminpanel", body)
             return
         self.send_page(HTTPStatus.NOT_FOUND, "Ikke funnet", "<p>Siden finnes ikke.</p>")
 

@@ -52,3 +52,15 @@ python3 backend/send_test_invitation.py
 ```
 
 The command reads the Brevo secret from the environment, sends only to that teacher, and does not print the address or invitation token.
+
+## Admin rights
+
+Admin is a flag (`is_admin`) on top of the `laerer` role, not a separate role — an admin
+is still a teacher. Grant or revoke it with the service configuration loaded:
+
+```sh
+python3 backend/set_admin.py <e-post> true
+python3 backend/set_admin.py <e-post> false
+```
+
+The command fails if the user does not exist or is not a `laerer`.

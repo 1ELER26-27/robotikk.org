@@ -1,5 +1,43 @@
 # Plan: robotikk.org via Cloudflare Tunnel
 
+## Ny fase: Adminpanel for lærere 🚧
+Infrastrukturen (Cloudflare Tunnel, nginx, webhook-deploy) og den grunnleggende
+autentiserings-backenden (invitasjon, aktivering, innlogging) er ferdige. Neste fase er å
+gi lærere et adminpanel i den private backenden (`backend/`).
+
+**Mål:** en innlogget lærer med adminrettigheter skal kunne administrere brukere (se
+liste, invitere, deaktivere, evt. endre rolle) uten å gå via CSV-import/SSH.
+
+**Utgangspunkt:**
+- `users`-tabellen har i dag kun `role IN ('elev', 'laerer')` — ingen eget admin-nivå ennå
+  (se `SCHEMA` i [backend/app.py](backend/app.py)).
+- Brukeren `ingve` (`ingve.bjorna@skole.rogfk.no`) finnes allerede i databasen som `laerer`
+  og er den vi jobber videre med først for å få admintilgang.
+- `server.py` har i dag kun offentlige ruter (`/logg-inn/`, `/aktiver/`, `/glemt-passord/`);
+  ingen autentiserte/beskyttede sider eller sesjonsbaserte tilgangssjekker for spesifikke
+  ruter ennå (`valid_session()` finnes, men brukes ikke til å beskytte noen side).
+
+**Åpne designvalg (avklares før implementasjon):**
+1. ✅ **Avgjort:** admin er et eget `is_admin`-flagg på `laerer`-brukere (samme mønster som
+   Djangos `is_staff`/`is_superuser`), ikke en egen `role`-verdi. En admin er dermed alltid
+   også en vanlig lærer og trenger ingen dupliserte rettigheter — kun `laerer` kan settes
+   som admin (håndheves i `set_user_admin()` i [backend/app.py](backend/app.py)). Kolonnen
+   er lagt til i `SCHEMA`, med automatisk migrering (`_migrate_schema()`) for eksisterende
+   databaser. `backend/set_admin.py <e-post> <true|false>` gir/fjerner admintilgang fra
+   kommandolinjen inntil panelet har sin egen UI for dette.
+2. Hvilke handlinger skal adminpanelet støtte i første omgang: kun liste/deaktivere
+   brukere, eller også sende nye invitasjoner fra UI (i stedet for CSV+script)?
+3. Tilgangskontroll: ny beskyttet rute (f.eks. `/admin/`) som sjekker
+   `valid_session()` + admin-flagg, med redirect til `/logg-inn/` ellers.
+
+**Neste steg:**
+- [ ] Gi `ingve` admintilgang i databasen — kjør på serveren (verktøyet er klart, men ikke kjørt mot produksjonsdatabasen ennå):
+      `python3 backend/set_admin.py ingve.bjorna@skole.rogfk.no true`
+- [x] Legg til en beskyttet `/admin/`-rute i `server.py` som lister brukere fra `users`-tabellen (krever innlogget økt + `is_admin`, redirect til `/logg-inn/` ellers).
+- [ ] Utvid med handlinger (deaktiver bruker, ny invitasjon) etter at grunnvisningen virker.
+- [x] Skriv tester i `backend/test_app.py` / `backend/test_server.py` for ny logikk (12 tester, alle grønne).
+- [x] Følg `DESIGN-SPEC.md` for skjema/tabell-utforming i panelet — tabellen har `.admin-table`-stil med stabile kolonner på desktop og stablet visning under 42rem.
+
 ## Status — rammeverket er i praksis ferdig ✅
 - [x] Webserver (192.168.30.105): pakker, `robotikk`-bruker, lokal nginx :8080, webhook :9000, ufw.
 - [x] Repo opprettet og pushet: https://github.com/1ELER26-27/robotikk.org

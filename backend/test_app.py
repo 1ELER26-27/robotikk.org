@@ -1,9 +1,10 @@
 import os
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-from app import Settings, activate_invitation, connect_database, create_invitation, hash_password, healthcheck, new_invitation_token, verify_password
+from app import Settings, activate_invitation, connect_database, create_invitation, hash_password, healthcheck, new_invitation_token, set_user_admin, verify_password
 from import_users import import_users
 
 
@@ -57,6 +58,41 @@ class BackendFoundationTests(unittest.TestCase):
             with connect_database(database_path) as connection:
                 roles = {row["role"] for row in connection.execute("SELECT role FROM users")}
             self.assertEqual(roles, {"elev", "laerer"})
+
+    def test_only_teachers_can_become_admin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "robotikk.sqlite3"
+            connection = connect_database(path)
+            connection.execute("INSERT INTO users (email, display_name, role) VALUES (?, ?, ?)", ("student@example.invalid", "Example", "elev"))
+            connection.execute("INSERT INTO users (email, display_name, role) VALUES (?, ?, ?)", ("teacher@example.invalid", "Example", "laerer"))
+            connection.commit()
+            self.assertFalse(set_user_admin(connection, "student@example.invalid", True))
+            self.assertTrue(set_user_admin(connection, "teacher@example.invalid", True))
+            row = connection.execute("SELECT is_admin FROM users WHERE email = ?", ("teacher@example.invalid",)).fetchone()
+            self.assertEqual(row["is_admin"], 1)
+            self.assertTrue(set_user_admin(connection, "teacher@example.invalid", False))
+
+    def test_migration_adds_is_admin_column_to_old_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "robotikk.sqlite3"
+            legacy_connection = sqlite3.connect(path)
+            legacy_connection.execute(
+                """CREATE TABLE users (
+                    id INTEGER PRIMARY KEY,
+                    email TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('elev', 'laerer')),
+                    github_username TEXT,
+                    password_hash TEXT,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )"""
+            )
+            legacy_connection.commit()
+            legacy_connection.close()
+            with connect_database(path) as connection:
+                columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+            self.assertIn("is_admin", columns)
 
 
 if __name__ == "__main__":
