@@ -57,6 +57,12 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
 .qr-image { display: block; width: 10rem; height: 10rem; margin: 0.75rem 0; background: #fff; }
 .print-label { display: none; }
 
+.auth-form { display: grid; gap: 1.1rem; max-width: 24rem; margin: 1.5rem 0; }
+.auth-form label { display: grid; gap: 0.4rem; font-weight: 650; }
+.auth-form input, .auth-form select { width: 100%; padding: 0.65rem 0.7rem; border: 1px solid #aebdc5; border-radius: 0.25rem; background: #fff; color: var(--ink); font: inherit; }
+.auth-form input:focus, .auth-form select:focus { outline: 3px solid #9ed9dc; outline-offset: 1px; }
+.auth-form button { justify-self: start; margin-top: 0.35rem; }
+
 .admin-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
 .admin-table caption { text-align: left; font-weight: 700; padding: 0.5rem 0.1rem; }
 .admin-table th, .admin-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); }

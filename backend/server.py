@@ -108,14 +108,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_page(HTTPStatus.OK, "OK", "<p>Backend kjører.</p>")
             return
         if parsed.path == "/logg-inn/":
-            self.send_page(HTTPStatus.OK, "Logg inn", '<form method="post"><label>E-post<input type="email" name="email" required autocomplete="email"></label><label>Passord<input type="password" name="password" required autocomplete="current-password"></label><button type="submit">Logg inn</button></form><p><a href="/glemt-passord/">Glemt passord?</a></p>')
+            self.send_page(HTTPStatus.OK, "Logg inn", '<form class="auth-form" method="post"><label>E-post<input type="email" name="email" required autocomplete="email"></label><label>Passord<input type="password" name="password" required autocomplete="current-password"></label><button type="submit">Logg inn</button></form><p><a href="/glemt-passord/">Glemt passord?</a></p>')
             return
         if parsed.path == "/aktiver/":
             token = parse_qs(parsed.query).get("token", [""])[0]
             if not token or len(token) < 20:
                 self.send_page(HTTPStatus.BAD_REQUEST, "Ugyldig lenke", "<p>Invitasjonslenken er ugyldig eller utløpt.</p>")
                 return
-            self.send_page(HTTPStatus.OK, "Aktiver konto", f'<form method="post"><input type="hidden" name="token" value="{html.escape(token)}"><label>Nytt passord<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button type="submit">Lagre passord</button></form>')
+            self.send_page(HTTPStatus.OK, "Aktiver konto", f'<form class="auth-form" method="post"><input type="hidden" name="token" value="{html.escape(token)}"><label>Nytt passord<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button type="submit">Lagre passord</button></form>')
             return
         if parsed.path == "/min-side/":
             user_id = self.valid_session()
@@ -160,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
                 "<th scope=\"col\">Handling</th></tr></thead>"
                 f"<tbody>{rows}</tbody></table>"
                 "<h2>Legg til bruker</h2>"
-                '<form method="post" action="/admin/ny-bruker/">'
+                '<form class="auth-form" method="post" action="/admin/ny-bruker/">'
                 '<label>E-post<input type="email" name="email" required autocomplete="off"></label>'
                 '<label>Navn<input type="text" name="display_name" required autocomplete="off"></label>'
                 '<label>Rolle<select name="role"><option value="elev">Elev</option><option value="laerer">Lærer</option></select></label>'
@@ -186,7 +186,7 @@ class Handler(BaseHTTPRequestHandler):
             body = (
                 f"<p>Slette {html.escape(target['display_name'])} ({html.escape(target['email'])})? "
                 "Dette kan ikke angres.</p>"
-                f'<form method="post" action="/admin/slett-bruker/"><input type="hidden" name="id" value="{target["id"]}">'
+                f'<form class="auth-form" method="post" action="/admin/slett-bruker/"><input type="hidden" name="id" value="{target["id"]}">'
                 '<button type="submit">Ja, slett</button></form>'
                 '<p><a href="/admin/">Avbryt</a></p>'
             )
