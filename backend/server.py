@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import hmac
+import json
 import os
 import secrets
 import time
@@ -13,7 +14,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from app import Settings, activate_invitation, authenticate_user, connect_database, find_user_by_id, list_users, record_event
+from app import Settings, activate_invitation, authenticate_user, connect_database, create_invitation, create_user, delete_user, find_user_by_id, list_users, record_event
 
 SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30  # husk innlogget enhet i 30 dager
 
@@ -29,6 +30,14 @@ class Handler(BaseHTTPRequestHandler):
         payload = page(title, body)
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def send_json(self, status: HTTPStatus, data: dict) -> None:
+        payload = json.dumps(data).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
@@ -82,6 +91,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(HTTPStatus.OK if (user is not None and user["active"]) else HTTPStatus.UNAUTHORIZED)
             self.end_headers()
             return
+        if parsed.path == "/api/me":
+            user_id = self.valid_session()
+            with connect_database(self.settings.database_path) as connection:
+                user = find_user_by_id(connection, user_id) if user_id is not None else None
+            if user is None or not user["active"]:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {})
+                return
+            self.send_json(HTTPStatus.OK, {
+                "display_name": user["display_name"],
+                "role": user["role"],
+                "is_admin": bool(user["is_admin"]),
+            })
+            return
         if parsed.path == "/health":
             self.send_page(HTTPStatus.OK, "OK", "<p>Backend kjører.</p>")
             return
@@ -120,22 +142,55 @@ class Handler(BaseHTTPRequestHandler):
             rows = "".join(
                 "<tr><td data-label=\"Navn\">{}</td><td data-label=\"E-post\">{}</td>"
                 "<td data-label=\"Rolle\">{}</td><td data-label=\"Admin\">{}</td>"
-                "<td data-label=\"Status\">{}</td></tr>".format(
+                "<td data-label=\"Status\">{}</td>"
+                "<td data-label=\"Handling\">{}</td></tr>".format(
                     html.escape(row["display_name"]),
                     html.escape(row["email"]),
                     "Lærer" if row["role"] == "laerer" else "Elev",
                     "Ja" if row["is_admin"] else "Nei",
                     "Aktiv" if row["active"] else "Deaktivert",
+                    "" if row["id"] == admin["id"] else f'<a href="/admin/slett-bruker/?id={row["id"]}">Slett</a>',
                 )
                 for row in users
             )
             body = (
                 '<table class="admin-table"><caption>Brukere</caption>'
                 "<thead><tr><th scope=\"col\">Navn</th><th scope=\"col\">E-post</th>"
-                "<th scope=\"col\">Rolle</th><th scope=\"col\">Admin</th><th scope=\"col\">Status</th></tr></thead>"
+                "<th scope=\"col\">Rolle</th><th scope=\"col\">Admin</th><th scope=\"col\">Status</th>"
+                "<th scope=\"col\">Handling</th></tr></thead>"
                 f"<tbody>{rows}</tbody></table>"
+                "<h2>Legg til bruker</h2>"
+                '<form method="post" action="/admin/ny-bruker/">'
+                '<label>E-post<input type="email" name="email" required autocomplete="off"></label>'
+                '<label>Navn<input type="text" name="display_name" required autocomplete="off"></label>'
+                '<label>Rolle<select name="role"><option value="elev">Elev</option><option value="laerer">Lærer</option></select></label>'
+                '<button type="submit">Legg til</button>'
+                "</form>"
             )
             self.send_page(HTTPStatus.OK, "Adminpanel", body)
+            return
+        if parsed.path == "/admin/slett-bruker/":
+            with connect_database(self.settings.database_path) as connection:
+                admin = self.current_admin(connection)
+                if admin is None:
+                    self.redirect("/logg-inn/")
+                    return
+                raw_id = parse_qs(parsed.query).get("id", [""])[0]
+                target = find_user_by_id(connection, int(raw_id)) if raw_id.isdigit() else None
+            if target is None:
+                self.send_page(HTTPStatus.NOT_FOUND, "Fant ikke bruker", "<p>Brukeren finnes ikke.</p>")
+                return
+            if target["id"] == admin["id"]:
+                self.send_page(HTTPStatus.BAD_REQUEST, "Kan ikke slette deg selv", "<p>Du kan ikke slette din egen bruker.</p><p><a href=\"/admin/\">Tilbake</a></p>")
+                return
+            body = (
+                f"<p>Slette {html.escape(target['display_name'])} ({html.escape(target['email'])})? "
+                "Dette kan ikke angres.</p>"
+                f'<form method="post" action="/admin/slett-bruker/"><input type="hidden" name="id" value="{target["id"]}">'
+                '<button type="submit">Ja, slett</button></form>'
+                '<p><a href="/admin/">Avbryt</a></p>'
+            )
+            self.send_page(HTTPStatus.OK, "Bekreft sletting", body)
             return
         self.send_page(HTTPStatus.NOT_FOUND, "Ikke funnet", "<p>Siden finnes ikke.</p>")
 
@@ -170,6 +225,41 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_page(HTTPStatus.BAD_REQUEST, "Kunne ikke aktivere", "<p>Invitasjonslenken er ugyldig eller utløpt.</p>")
                 return
             self.send_page(HTTPStatus.OK, "Konto aktivert", "<p>Passordet er lagret. Du kan nå logge inn.</p>")
+            return
+        if parsed.path == "/admin/ny-bruker/":
+            with connect_database(self.settings.database_path) as connection:
+                admin = self.current_admin(connection)
+                if admin is None:
+                    self.redirect("/logg-inn/")
+                    return
+                values = self.read_form()
+                try:
+                    user_id = create_user(connection, values.get("email", ""), values.get("display_name", ""), values.get("role", ""))
+                except ValueError as error:
+                    self.send_page(HTTPStatus.BAD_REQUEST, "Kunne ikke legge til bruker", f"<p>{html.escape(str(error))}</p><p><a href=\"/admin/\">Tilbake</a></p>")
+                    return
+                expires_at = (datetime.now(timezone.utc) + timedelta(days=14)).strftime("%Y-%m-%d %H:%M:%S")
+                token = create_invitation(connection, user_id, expires_at)
+            link = f"https://robotikk.org/aktiver/?token={token}"
+            body = (
+                "<p>Bruker lagt til. Del denne aktiveringslenken manuelt (gyldig i 14 dager) — "
+                "den vises kun denne ene gangen:</p>"
+                f'<p><a href="{html.escape(link)}">{html.escape(link)}</a></p>'
+                '<p><a href="/admin/">Tilbake til adminpanelet</a></p>'
+            )
+            self.send_page(HTTPStatus.OK, "Bruker lagt til", body)
+            return
+        if parsed.path == "/admin/slett-bruker/":
+            with connect_database(self.settings.database_path) as connection:
+                admin = self.current_admin(connection)
+                if admin is None:
+                    self.redirect("/logg-inn/")
+                    return
+                values = self.read_form()
+                raw_id = values.get("id", "")
+                if raw_id.isdigit() and int(raw_id) != admin["id"]:
+                    delete_user(connection, int(raw_id))
+            self.redirect("/admin/")
             return
         self.send_page(HTTPStatus.NOT_FOUND, "Ikke funnet", "<p>Siden finnes ikke.</p>")
 

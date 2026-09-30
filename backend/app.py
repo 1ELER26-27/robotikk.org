@@ -152,6 +152,33 @@ def list_users(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def create_user(connection: sqlite3.Connection, email: str, display_name: str, role: str) -> int:
+    """Add a user to the allowlist. No password is set; share an invitation link separately."""
+    email = email.strip().lower()
+    display_name = display_name.strip()
+    if not email or not display_name or role not in {"elev", "laerer"}:
+        raise ValueError("E-post, navn og gyldig rolle (elev/laerer) er påkrevd")
+    if find_user_by_email(connection, email) is not None:
+        raise ValueError("E-postadressen er allerede registrert")
+    cursor = connection.execute(
+        "INSERT INTO users (email, display_name, role) VALUES (?, ?, ?)",
+        (email, display_name, role),
+    )
+    connection.commit()
+    return cursor.lastrowid
+
+
+def delete_user(connection: sqlite3.Connection, user_id: int) -> bool:
+    """Remove a user and its invitations. Audit events are kept, with the actor cleared."""
+    if find_user_by_id(connection, user_id) is None:
+        return False
+    connection.execute("UPDATE audit_events SET actor_user_id = NULL WHERE actor_user_id = ?", (user_id,))
+    connection.execute("DELETE FROM invitation_tokens WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    connection.commit()
+    return True
+
+
 def set_user_admin(connection: sqlite3.Connection, email: str, is_admin: bool) -> bool:
     """Grant or revoke admin rights. Only teachers ('laerer') may be admins."""
     row = find_user_by_email(connection, email)

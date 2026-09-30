@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import Settings, activate_invitation, connect_database, create_invitation, hash_password, healthcheck, new_invitation_token, set_user_admin, verify_password
+from app import Settings, activate_invitation, connect_database, create_invitation, create_user, delete_user, hash_password, healthcheck, new_invitation_token, set_user_admin, verify_password
 from import_users import import_users
 
 
@@ -93,6 +93,35 @@ class BackendFoundationTests(unittest.TestCase):
             with connect_database(path) as connection:
                 columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
             self.assertIn("is_admin", columns)
+
+    def test_create_user_rejects_duplicate_email(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "robotikk.sqlite3"
+            connection = connect_database(path)
+            user_id = create_user(connection, "Student@Example.invalid", " Elev Eksempel ", "elev")
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            self.assertEqual(row["email"], "student@example.invalid")
+            self.assertEqual(row["display_name"], "Elev Eksempel")
+            self.assertIsNone(row["password_hash"])
+            with self.assertRaises(ValueError):
+                create_user(connection, "student@example.invalid", "Duplikat", "elev")
+            with self.assertRaises(ValueError):
+                create_user(connection, "annen@example.invalid", "Annen", "ugyldig-rolle")
+
+    def test_delete_user_removes_invitations_and_clears_audit_actor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "robotikk.sqlite3"
+            connection = connect_database(path)
+            user_id = create_user(connection, "student@example.invalid", "Elev", "elev")
+            create_invitation(connection, user_id, "2999-01-01 00:00:00")
+            connection.execute("INSERT INTO audit_events (actor_user_id, event_type) VALUES (?, ?)", (user_id, "login"))
+            connection.commit()
+            self.assertTrue(delete_user(connection, user_id))
+            self.assertIsNone(connection.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone())
+            self.assertIsNone(connection.execute("SELECT id FROM invitation_tokens WHERE user_id = ?", (user_id,)).fetchone())
+            event = connection.execute("SELECT actor_user_id FROM audit_events WHERE event_type = 'login'").fetchone()
+            self.assertIsNone(event["actor_user_id"])
+            self.assertFalse(delete_user(connection, user_id))
 
 
 if __name__ == "__main__":
