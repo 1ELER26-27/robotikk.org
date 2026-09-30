@@ -76,6 +76,22 @@ class AdminRouteTests(unittest.TestCase):
         self.assertIn("Elev Eksempel", body)
         self.assertIn("student@example.invalid", body)
 
+    def test_min_side_redirects_anonymous_visitors_to_login(self):
+        final_url, _ = self._get("/min-side/")
+        self.assertTrue(final_url.endswith("/logg-inn/"))
+
+    def test_min_side_shows_admin_link_for_admin(self):
+        final_url, body = self._get("/min-side/", user_id=self.admin_id)
+        self.assertTrue(final_url.endswith("/min-side/"))
+        self.assertIn("Admin", body)
+        self.assertIn("/admin/", body)
+
+    def test_min_side_hides_admin_link_for_non_admin(self):
+        final_url, body = self._get("/min-side/", user_id=self.student_id)
+        self.assertTrue(final_url.endswith("/min-side/"))
+        self.assertIn("Elev Eksempel", body)
+        self.assertNotIn("/admin/", body)
+
 
 if __name__ == "__main__":
     unittest.main()

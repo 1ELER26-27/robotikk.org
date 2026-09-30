@@ -86,6 +86,21 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.send_page(HTTPStatus.OK, "Aktiver konto", f'<form method="post"><input type="hidden" name="token" value="{html.escape(token)}"><label>Nytt passord<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button type="submit">Lagre passord</button></form>')
             return
+        if parsed.path == "/min-side/":
+            user_id = self.valid_session()
+            if user_id is None:
+                self.redirect("/logg-inn/")
+                return
+            with connect_database(self.settings.database_path) as connection:
+                user = find_user_by_id(connection, user_id)
+            if user is None or not user["active"]:
+                self.redirect("/logg-inn/")
+                return
+            role_label = "Lærer" if user["role"] == "laerer" else "Elev"
+            admin_link = '<p><a href="/admin/">Adminpanel</a></p>' if user["is_admin"] else ""
+            body = f'<p>Velkommen, {html.escape(user["display_name"])} ({role_label}).</p>{admin_link}'
+            self.send_page(HTTPStatus.OK, "Min side", body)
+            return
         if parsed.path == "/admin/":
             with connect_database(self.settings.database_path) as connection:
                 admin = self.current_admin(connection)
